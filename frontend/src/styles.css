@@ -1,0 +1,128 @@
+* { box-sizing: border-box; }
+body {
+  margin: 0;
+  font-family: 'Segoe UI', Tahoma, sans-serif;
+  background: linear-gradient(140deg, #0a0d10, #111b22 40%, #0f2f2f);
+  color: #ecf4f6;
+}
+
+.auth-wrap {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px;
+}
+
+.layout {
+  display: grid;
+  grid-template-columns: 260px 1fr;
+  gap: 16px;
+  min-height: 100vh;
+  padding: 16px;
+}
+
+.sidebar { align-self: start; position: sticky; top: 16px; }
+.main { display: grid; gap: 16px; }
+.card {
+  background: rgba(9, 16, 20, 0.78);
+  border: 1px solid rgba(111, 247, 210, 0.2);
+  border-radius: 14px;
+  padding: 16px;
+  backdrop-filter: blur(4px);
+}
+
+h1, h2 { margin: 0 0 10px; }
+.sub { margin-bottom: 12px; color: #9ec9cf; font-size: 13px; }
+
+button, input {
+  font: inherit;
+  border-radius: 10px;
+  border: 1px solid rgba(111, 247, 210, 0.25);
+  padding: 10px 12px;
+}
+
+input {
+  background: rgba(6, 12, 14, 0.9);
+  color: #ecf4f6;
+  width: 100%;
+}
+
+button {
+  background: #6ff7d2;
+  color: #02231e;
+  cursor: pointer;
+  font-weight: 600;
+}
+
+button.danger {
+  background: #ff7b86;
+  color: #2f0710;
+}
+
+button.active {
+  background: #9ffbe2;
+}
+
+.grid {
+  display: grid;
+  grid-template-columns: repeat(3, minmax(0, 1fr));
+  gap: 10px;
+  margin-bottom: 10px;
+}
+
+.auth {
+  max-width: 420px;
+  width: 100%;
+  display: grid;
+  gap: 12px;
+}
+
+.error {
+  background: rgba(255, 93, 109, 0.2);
+  border: 1px solid rgba(255, 93, 109, 0.35);
+  color: #ffd8dd;
+  padding: 10px;
+  border-radius: 10px;
+}
+
+.chips {
+  display: grid;
+  grid-template-columns: repeat(4, minmax(0, 1fr));
+  gap: 10px;
+}
+
+.chip {
+  border: 1px solid rgba(111, 247, 210, 0.18);
+  border-radius: 10px;
+  padding: 10px;
+  display: grid;
+}
+
+.chip span { color: #9ec9cf; font-size: 12px; text-transform: uppercase; }
+.chip strong { font-size: 20px; }
+
+.tabs { display: flex; flex-wrap: wrap; gap: 8px; margin-bottom: 12px; }
+.table-wrap { overflow: auto; }
+
+table {
+  width: 100%;
+  border-collapse: collapse;
+  min-width: 800px;
+}
+
+th, td {
+  border-bottom: 1px solid rgba(111, 247, 210, 0.15);
+  padding: 8px;
+  text-align: left;
+  font-size: 13px;
+  vertical-align: top;
+}
+
+.small { width: 90px; }
+
+@media (max-width: 1100px) {
+  .layout { grid-template-columns: 1fr; }
+  .sidebar { position: static; }
+  .grid { grid-template-columns: 1fr; }
+  .chips { grid-template-columns: repeat(2, minmax(0, 1fr)); }
+}

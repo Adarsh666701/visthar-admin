@@ -31,13 +31,21 @@ Backend enforces this in `backend/src/middleware/auth.js` and `backend/src/route
 - Dashboard stats
 - Operational lists viewer
 - Site settings editor
-- Inventory manager (create/update stock/delete)
+- Inventory manager (create/update stock/delete, image upload to S3)
 
 ## Setup
 
 ### 1) Backend
 
 Copy `backend/.env.example` to `backend/.env` and set values.
+
+For inventory images, configure:
+
+- `AWS_REGION`
+- `S3_BUCKET`
+- `AWS_ACCESS_KEY_ID`
+- `AWS_SECRET_ACCESS_KEY`
+- Optional `S3_PUBLIC_BASE_URL` if serving images through CloudFront or a custom public URL
 
 ```bash
 cd backend

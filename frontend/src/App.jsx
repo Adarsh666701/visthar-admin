@@ -13,10 +13,11 @@ const LIST_TABS = [
 ];
 
 async function api(path, options = {}) {
+  const isFormData = options.body instanceof FormData;
   const res = await fetch(`${API}${path}`, {
     credentials: 'include',
     headers: {
-      'Content-Type': 'application/json',
+      ...(isFormData ? {} : { 'Content-Type': 'application/json' }),
       ...(options.headers || {}),
     },
     ...options,
@@ -71,6 +72,8 @@ function LoginScreen({ onLogin }) {
 function Inventory({ refreshTick }) {
   const [items, setItems] = useState([]);
   const [form, setForm] = useState({ sku: '', name: '', price: 0, stock: 0, status: 'active', notes: '' });
+  const [imageFiles, setImageFiles] = useState([]);
+  const [fileInputKey, setFileInputKey] = useState(0);
   const [error, setError] = useState('');
 
   const load = async () => {
@@ -88,8 +91,14 @@ function Inventory({ refreshTick }) {
   const create = async (e) => {
     e.preventDefault();
     try {
-      await api('/api/admin/inventory', { method: 'POST', body: JSON.stringify(form) });
+      const body = new FormData();
+      Object.entries(form).forEach(([key, value]) => body.append(key, value));
+      imageFiles.forEach((file) => body.append('images', file));
+
+      await api('/api/admin/inventory', { method: 'POST', body });
       setForm({ sku: '', name: '', price: 0, stock: 0, status: 'active', notes: '' });
+      setImageFiles([]);
+      setFileInputKey((value) => value + 1);
       load();
     } catch (err) {
       setError(err.message);
@@ -127,17 +136,31 @@ function Inventory({ refreshTick }) {
         <input placeholder="Stock" type="number" value={form.stock} onChange={(e) => setForm({ ...form, stock: Number(e.target.value) })} />
         <input placeholder="Status" value={form.status} onChange={(e) => setForm({ ...form, status: e.target.value })} />
         <input placeholder="Notes" value={form.notes} onChange={(e) => setForm({ ...form, notes: e.target.value })} />
+        <input
+          key={fileInputKey}
+          type="file"
+          accept="image/*"
+          multiple
+          onChange={(e) => setImageFiles(Array.from(e.target.files || []))}
+        />
         <button>Create Item</button>
       </form>
       {error && <div className="error">{error}</div>}
       <div className="table-wrap">
         <table>
           <thead>
-            <tr><th>SKU</th><th>Name</th><th>Stock</th><th>Price</th><th>Status</th><th>Actions</th></tr>
+            <tr><th>Images</th><th>SKU</th><th>Name</th><th>Stock</th><th>Price</th><th>Status</th><th>Actions</th></tr>
           </thead>
           <tbody>
             {items.map((it) => (
               <tr key={it.id}>
+                <td>
+                  <div className="thumbs">
+                    {(it.images || []).slice(0, 3).map((image) => (
+                      <img key={image.key || image.url} src={image.url} alt={it.name} />
+                    ))}
+                  </div>
+                </td>
                 <td>{it.sku}</td>
                 <td>{it.name}</td>
                 <td>

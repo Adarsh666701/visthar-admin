@@ -11,4 +11,7 @@ export const env = {
   adminPassword: process.env.ADMIN_PASSWORD || 'ChangeMe@123',
   adminAllowedDomain: (process.env.ADMIN_ALLOWED_DOMAIN || '@visthar-lifestyle.com').toLowerCase(),
   corsOrigin: process.env.CORS_ORIGIN || 'http://localhost:5173',
+  awsRegion: process.env.AWS_REGION || 'ap-south-1',
+  s3Bucket: process.env.S3_BUCKET || '',
+  s3PublicBaseUrl: (process.env.S3_PUBLIC_BASE_URL || '').replace(/\/$/, ''),
 };

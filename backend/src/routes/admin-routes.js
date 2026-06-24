@@ -1,11 +1,27 @@
 import express from 'express';
+import multer from 'multer';
 import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/mongo.js';
 import { requireAdmin } from '../middleware/auth.js';
+import { uploadInventoryImages } from '../utils/s3.js';
 import { fail, ok } from '../utils/response.js';
 
 const router = express.Router();
 router.use(requireAdmin);
+
+const inventoryUpload = multer({
+  storage: multer.memoryStorage(),
+  limits: {
+    files: 6,
+    fileSize: 5 * 1024 * 1024,
+  },
+  fileFilter: (_req, file, cb) => {
+    if (!file.mimetype?.startsWith('image/')) {
+      return cb(new Error('only image files are allowed'));
+    }
+    cb(null, true);
+  },
+});
 
 const LIST_MAP = {
   prebookings: 'prebookings',
@@ -94,10 +110,16 @@ router.get('/inventory', async (req, res) => {
   return ok(res, { items, limit, skip });
 });
 
-router.post('/inventory', async (req, res) => {
+router.post('/inventory', inventoryUpload.array('images', 6), async (req, res) => {
   const sku = String(req.body?.sku || '').trim().toUpperCase();
   const name = String(req.body?.name || '').trim();
   if (!sku || !name) return fail(res, 'sku and name required', 400);
+
+  const db = await getDb();
+  const existing = await db.collection('inventory').findOne({ sku });
+  if (existing) return fail(res, 'sku already exists', 400);
+
+  const images = await uploadInventoryImages(req.files || [], sku);
 
   const item = {
     id: uuidv4(),
@@ -107,13 +129,10 @@ router.post('/inventory', async (req, res) => {
     stock: Number(req.body?.stock || 0),
     status: String(req.body?.status || 'active'),
     notes: String(req.body?.notes || ''),
+    images,
     updatedAt: new Date().toISOString(),
     createdAt: new Date().toISOString(),
   };
-
-  const db = await getDb();
-  const existing = await db.collection('inventory').findOne({ sku });
-  if (existing) return fail(res, 'sku already exists', 400);
 
   await db.collection('inventory').insertOne(item);
   return ok(res, { ok: true, item }, 201);

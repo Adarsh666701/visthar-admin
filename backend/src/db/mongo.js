@@ -19,6 +19,7 @@ async function ensureIndexes(db) {
     db.collection('users').createIndex({ createdAt: -1 }),
     db.collection('orders').createIndex({ createdAt: -1 }),
     db.collection('inventory').createIndex({ sku: 1 }, { unique: true }),
+    db.collection('inventory').createIndex({ slug: 1 }, { unique: true }),
     db.collection('inventory').createIndex({ updatedAt: -1 }),
     db.collection('site_settings').createIndex({ key: 1 }, { unique: true }),
   ]);

@@ -14,4 +14,6 @@ export const env = {
   awsRegion: process.env.AWS_REGION || 'ap-south-1',
   s3Bucket: process.env.S3_BUCKET || '',
   s3PublicBaseUrl: (process.env.S3_PUBLIC_BASE_URL || '').replace(/\/$/, ''),
+  logLevel: (process.env.LOG_LEVEL || 'debug').toLowerCase(),
+  logRequestBody: process.env.LOG_REQUEST_BODY === 'true',
 };

@@ -47,6 +47,14 @@ For inventory images, configure:
 - `AWS_SECRET_ACCESS_KEY`
 - Optional `S3_PUBLIC_BASE_URL` if serving images through CloudFront or a custom public URL
 
+For debugging, configure:
+
+- `LOG_LEVEL=debug` for full backend JSON logs
+- `LOG_REQUEST_BODY=true` to include redacted JSON request bodies
+- `VITE_ADMIN_DEBUG=true` in `frontend/.env` to print browser API request/response logs
+
+Every frontend API request sends `x-request-id`; backend logs include the same `requestId` so browser failures can be matched to server logs.
+
 ```bash
 cd backend
 npm install

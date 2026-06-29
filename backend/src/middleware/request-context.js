@@ -1,5 +1,6 @@
 import crypto from 'crypto';
-import { log } from '../utils/logger.js';
+import { env } from '../config/env.js';
+import { log, redact } from '../utils/logger.js';
 
 export function requestContext(req, res, next) {
   const requestId = req.header('x-request-id') || crypto.randomUUID();
@@ -27,8 +28,22 @@ export function requestContext(req, res, next) {
     requestId,
     method: req.method,
     path: req.path,
+    originalUrl: req.originalUrl,
+    query: req.query,
     ip,
+    userAgent: req.header('user-agent'),
+    contentType: req.header('content-type'),
+    contentLength: req.header('content-length'),
   });
+
+  if (env.logRequestBody && req.body && Object.keys(req.body).length) {
+    log('debug', 'request.body', {
+      requestId,
+      method: req.method,
+      path: req.path,
+      body: redact(req.body),
+    });
+  }
 
   res.on('finish', () => {
     const latencyMs = Date.now() - startedAt;
@@ -39,6 +54,7 @@ export function requestContext(req, res, next) {
       ip,
       status: res.statusCode,
       latencyMs,
+      responseContentLength: res.getHeader('content-length'),
     });
   });
 

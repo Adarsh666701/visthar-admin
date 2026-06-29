@@ -4,10 +4,36 @@ import { v4 as uuidv4 } from 'uuid';
 import { getDb } from '../db/mongo.js';
 import { requireAdmin } from '../middleware/auth.js';
 import { uploadInventoryImages } from '../utils/s3.js';
+import { log, logError } from '../utils/logger.js';
 import { fail, ok } from '../utils/response.js';
 
 const router = express.Router();
 router.use(requireAdmin);
+
+function slugify(value) {
+  return String(value || '')
+    .toLowerCase()
+    .trim()
+    .replace(/[^a-z0-9]+/g, '-')
+    .replace(/^-+|-+$/g, '');
+}
+
+function parseFeatures(value) {
+  return String(value || '')
+    .split(/\r?\n|,/)
+    .map((item) => item.trim())
+    .filter(Boolean);
+}
+
+function parseSpecs(value) {
+  if (!value) return {};
+  try {
+    const parsed = JSON.parse(value);
+    return parsed && typeof parsed === 'object' && !Array.isArray(parsed) ? parsed : {};
+  } catch {
+    return {};
+  }
+}
 
 const inventoryUpload = multer({
   storage: multer.memoryStorage(),
@@ -111,31 +137,79 @@ router.get('/inventory', async (req, res) => {
 });
 
 router.post('/inventory', inventoryUpload.array('images', 6), async (req, res) => {
-  const sku = String(req.body?.sku || '').trim().toUpperCase();
-  const name = String(req.body?.name || '').trim();
-  if (!sku || !name) return fail(res, 'sku and name required', 400);
+  const requestId = req.ctx?.requestId;
 
-  const db = await getDb();
-  const existing = await db.collection('inventory').findOne({ sku });
-  if (existing) return fail(res, 'sku already exists', 400);
+  try {
+    const sku = String(req.body?.sku || '').trim().toUpperCase();
+    const name = String(req.body?.name || '').trim();
+    const slug = slugify(req.body?.slug || name || sku);
 
-  const images = await uploadInventoryImages(req.files || [], sku);
+    log('info', 'inventory.create.received', {
+      requestId,
+      sku,
+      slug,
+      name,
+      imageCount: req.files?.length || 0,
+      files: (req.files || []).map((file) => ({
+        originalName: file.originalname,
+        contentType: file.mimetype,
+        size: file.size,
+      })),
+    });
 
-  const item = {
-    id: uuidv4(),
-    sku,
-    name,
-    price: Number(req.body?.price || 0),
-    stock: Number(req.body?.stock || 0),
-    status: String(req.body?.status || 'active'),
-    notes: String(req.body?.notes || ''),
-    images,
-    updatedAt: new Date().toISOString(),
-    createdAt: new Date().toISOString(),
-  };
+    if (!sku || !name) return fail(res, 'sku and name required', 400);
+    if (!slug) return fail(res, 'valid slug or name required', 400);
 
-  await db.collection('inventory').insertOne(item);
-  return ok(res, { ok: true, item }, 201);
+    const db = await getDb();
+    const existing = await db.collection('inventory').findOne({ $or: [{ sku }, { slug }] });
+    if (existing?.sku === sku) {
+      log('warn', 'inventory.create.duplicate_sku', { requestId, sku, slug });
+      return fail(res, 'sku already exists', 400);
+    }
+    if (existing?.slug === slug) {
+      log('warn', 'inventory.create.duplicate_slug', { requestId, sku, slug });
+      return fail(res, 'slug already exists', 400);
+    }
+
+    log('debug', 'inventory.create.uploading_images', { requestId, sku, slug, imageCount: req.files?.length || 0 });
+    const images = await uploadInventoryImages(req.files || [], sku);
+    const primaryImage = images[0]?.url || String(req.body?.image || '').trim();
+
+    const item = {
+      id: uuidv4(),
+      sku,
+      slug,
+      name,
+      category: String(req.body?.category || 'future-products').trim(),
+      tagline: String(req.body?.tagline || req.body?.notes || '').trim(),
+      badge: String(req.body?.badge || 'NEW').trim(),
+      price: Number(req.body?.price || 0),
+      stock: Number(req.body?.stock || 0),
+      status: String(req.body?.status || 'active'),
+      notes: String(req.body?.notes || ''),
+      image: primaryImage,
+      images,
+      features: parseFeatures(req.body?.features),
+      specs: parseSpecs(req.body?.specs),
+      updatedAt: new Date().toISOString(),
+      createdAt: new Date().toISOString(),
+    };
+
+    await db.collection('inventory').insertOne(item);
+    log('info', 'inventory.create.success', {
+      requestId,
+      id: item.id,
+      sku,
+      slug,
+      imageCount: images.length,
+      mongoCollection: 'inventory',
+    });
+
+    return ok(res, { ok: true, item }, 201);
+  } catch (error) {
+    logError('inventory.create.failed', error, { requestId });
+    return fail(res, error?.message || 'inventory create failed', 500);
+  }
 });
 
 router.put('/inventory/:id', async (req, res) => {
@@ -156,6 +230,11 @@ router.put('/inventory/:id', async (req, res) => {
   if (!result.matchedCount) return fail(res, 'inventory item not found', 404);
 
   const item = await db.collection('inventory').findOne({ id }, { projection: { _id: 0 } });
+  log('info', 'inventory.update.success', {
+    requestId: req.ctx?.requestId,
+    id,
+    updatedFields: Object.keys(update),
+  });
   return ok(res, { ok: true, item });
 });
 
@@ -165,7 +244,20 @@ router.delete('/inventory/:id', async (req, res) => {
   const result = await db.collection('inventory').deleteOne({ id });
   if (!result.deletedCount) return fail(res, 'inventory item not found', 404);
 
+  log('info', 'inventory.delete.success', {
+    requestId: req.ctx?.requestId,
+    id,
+  });
   return ok(res, { ok: true });
+});
+
+router.use((err, req, res, _next) => {
+  logError('admin.route.error', err, {
+    requestId: req.ctx?.requestId,
+    method: req.method,
+    path: req.path,
+  });
+  return fail(res, err?.message || 'admin route failed', err instanceof multer.MulterError ? 400 : 500);
 });
 
 export default router;

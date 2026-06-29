@@ -6,7 +6,7 @@ import { getDb } from './db/mongo.js';
 import { requestContext } from './middleware/request-context.js';
 import adminRoutes from './routes/admin-routes.js';
 import authRoutes from './routes/auth-routes.js';
-import { log } from './utils/logger.js';
+import { log, logError } from './utils/logger.js';
 
 const app = express();
 
@@ -23,12 +23,21 @@ app.use('/api/auth', authRoutes);
 app.use('/api/admin', adminRoutes);
 
 app.use((err, req, res, _next) => {
-  log('error', 'request.error', {
+  logError('request.error', err, {
     requestId: req.ctx?.requestId,
-    message: err?.message || 'Unhandled error',
-    stack: err?.stack,
+    method: req.method,
+    path: req.path,
   });
   res.status(500).json({ error: 'internal server error' });
+});
+
+process.on('unhandledRejection', (reason) => {
+  logError('process.unhandled_rejection', reason instanceof Error ? reason : new Error(String(reason)));
+});
+
+process.on('uncaughtException', (error) => {
+  logError('process.uncaught_exception', error);
+  process.exit(1);
 });
 
 async function start() {
@@ -39,6 +48,6 @@ async function start() {
 }
 
 start().catch((error) => {
-  log('error', 'server.failed', { message: error?.message, stack: error?.stack });
+  logError('server.failed', error);
   process.exit(1);
 });
